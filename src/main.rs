@@ -19,10 +19,8 @@ fn main() {
 
     while window.is_open() && !window.is_key_down(Key::Escape) {
         let (w, h) = window.get_size();
-        if w != width || h != height {
-            if w * h > width * height {
-                buffer.resize(w*h, 0);
-            }
+        if w != width || h != height && w * h > width * height {
+            buffer.resize(w*h, 0);
         }
         fill_pattern(&mut buffer[0..w*h], w, h, 10);
         window.update_with_buffer(&buffer[0..w*h], w, h);

@@ -123,23 +123,17 @@ impl Rasterizer {
                 mvp * to_vec4(&buf[i.z], 1.),
             ];
             for vec in v.iter_mut() {
-                *vec = *vec / vec.w;
+                *vec /= vec.w;
             }
             for vert in v.iter_mut() {
                 vert.x = 0.5 * self.width as f64 * (vert.x + 1.);
                 vert.y = 0.5 * self.height as f64 * (vert.y + 1.);
                 vert.z = vert.z * f1 * f2;
             }
-            for i in 0..3 {
-                t.vertices[i] = to_vec3(&v[0]);
-            }
-            // Colors
-            let c = [col[i.x], col[i.y], col[i.z]];
-            for i in 0..3 {
-                t.colors[i] = c[i];
-            }
+            t.vertices.copy_from_slice(&v.map(|vert| to_vec3(&vert)));
+            t.colors.copy_from_slice(&[col[i.x], col[i.y], col[i.z]]);
             // Rasterize 
-            rasterize_triangle(&t);
+            // rasterize_triangle(&t);
         }
     }
 //     void rst::rasterizer::draw(pos_buf_id pos_buffer, ind_buf_id ind_buffer, col_buf_id col_buffer, Primitive type, bool anti_aliased)

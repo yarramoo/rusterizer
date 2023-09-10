@@ -1,4 +1,4 @@
-use nalgebra::{self, Matrix4, Matrix3, Vector3, Vector4};
+use nalgebra::{self, Matrix4, Matrix3, Vector3, Vector4, Vector};
 use std::collections::HashMap;
 
 fn get_index(x: usize, y: usize, width: usize, height: usize) -> usize {
@@ -47,13 +47,13 @@ fn inside_triangle(x: f64, y: f64, triangle: &Triangle) -> bool {
     c1 >= 0. && c2 >= 0. && c3 >= 0.
 }
 
-struct PosBufID(usize);
-struct IndBufID(usize);
-struct ColBufID(usize);
+pub struct PosBufID(usize);
+pub struct IndBufID(usize);
+pub struct ColBufID(usize);
 
 
 #[derive(Default)]
-struct Rasterizer {
+pub struct Rasterizer {
     model: Matrix4<f64>,
     view:  Matrix4<f64>, 
     projection: Matrix4<f64>,
@@ -100,9 +100,9 @@ impl Rasterizer {
         id
     }
 
-    pub fn load_colors(&mut self, colors: Vec<Vector3<usize>>) -> usize {
+    pub fn load_colors(&mut self, colors: Vec<Vector3<f64>>) -> usize {
         let id = self.get_next_id();
-        self.ind_buf.insert(id, colors);
+        self.col_buf.insert(id, colors);
         id
     }
 
@@ -122,7 +122,15 @@ impl Rasterizer {
         &self.frame_buf[idx]
     }
 
-    fn draw(&mut self, pos_id: PosBufID, ind_id: IndBufID, col_id: ColBufID) {
+    pub fn clear_frame_buf(&mut self) {
+        self.frame_buf.fill(Vector3::zeros());
+    }
+
+    pub fn clear_depth_buf(&mut self) {
+        self.depth_buf.fill(0.);
+    }
+
+    pub fn draw(&mut self, pos_id: PosBufID, ind_id: IndBufID, col_id: ColBufID) {
         let buf = self.pos_buf.get(&pos_id.0).unwrap();
         let ind = self.ind_buf.get(&ind_id.0).unwrap();
         let col = self.col_buf.get(&col_id.0).unwrap();

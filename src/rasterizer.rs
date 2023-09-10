@@ -13,9 +13,9 @@ fn to_vec3(vec4: &Vector4<f64>) -> Vector3<f64> {
     Vector3::new(vec4.x, vec4.y, vec4.z)
 }
 
-fn compute_barycentric_2D(x: f64, y: f64, a: &Vector3<f64>, b: &Vector3<f64>, c: &Vector3<f64>) -> (f64, f64, f64) {
-    let p: Vector3<f64> = Vector3::new(x, y, 0.);
-    let v0 = b - a; let v1 = c - a; let v2 = p - a;
+fn compute_barycentric_2D(x: f64, y: f64, v: &[Vector3<f64>; 3]) -> (f64, f64, f64) {
+    let p = Vector3::new(x, y, 0.);
+    let v0 = v[1] - v[0]; let v1 = v[2] - v[0]; let v2 = p - v[0];
     let den = v0.x * v1.y - v1.x * v0.y;
     let c1 = (v2.x * v1.y - v1.x * v2.y) / den;
     let c2 = (v0.x * v2.y - v2.x * v0.y) / den;
@@ -31,12 +31,19 @@ struct Triangle {
     normals:  [Vector3<f64>; 3], 
 }
 
+impl Triangle {
+    fn to_vector4(&self) -> [Vector4<f64>; 3] {
+        let mut out = [Vector4::default(); 3];
+        for (i, v) in self.vertices.iter().enumerate() {
+            out[i] = Vector4::new(v.x, v.y, v.z, 1.);
+        }
+        out
+    }
+}
+
 
 fn inside_triangle(x: f64, y: f64, triangle: &Triangle) -> bool {
-    let v1 = triangle.vertices[0];
-    let v2 = triangle.vertices[1];
-    let v3 = triangle.vertices[2];
-    let (c1, c2, c3) = compute_barycentric_2D(x, y, &v1, &v2, &v3);
+    let (c1, c2, c3) = compute_barycentric_2D(x, y, &triangle.vertices);
     c1 >= 0. && c2 >= 0. && c3 >= 0.
 }
 
@@ -56,8 +63,8 @@ struct Rasterizer {
     col_buf: HashMap<usize, Vec<Vector3<f64>>>,
 
     // Buffers for rendering
-    frame_buf: Vec<Matrix3<f64>>,
-    depth_buf: Vec<Matrix3<f64>>,
+    frame_buf: Vec<Vector3<f64>>,
+    depth_buf: Vec<f64>,
 
     width: usize,
     height: usize,
@@ -77,7 +84,7 @@ impl Rasterizer {
         }
     }
 
-    pub fn frame_buf(&self) -> &[Matrix3<f64>] {
+    pub fn frame_buf(&self) -> &[Vector3<f64>] {
         &self.frame_buf[..]
     }
 
@@ -103,6 +110,16 @@ impl Rasterizer {
         let id = self.next_id;
         self.next_id += 1;
         id
+    }
+
+    fn set_pixel(&mut self, point: &Vector3<f64>, color: &Vector3<f64>) {
+        let idx = get_index(point.x.round() as usize, point.y.round() as usize, self.width, self.height);
+        self.frame_buf[idx] = *color;
+    }
+
+    fn get_pixel(&self, point: &Vector3<f64>) -> &Vector3<f64> {
+        let idx = get_index(point.x.round() as usize, point.y.round() as usize, self.width, self.height);
+        &self.frame_buf[idx]
     }
 
     fn draw(&mut self, pos_id: PosBufID, ind_id: IndBufID, col_id: ColBufID) {
@@ -136,56 +153,34 @@ impl Rasterizer {
             // rasterize_triangle(&t);
         }
     }
-//     void rst::rasterizer::draw(pos_buf_id pos_buffer, ind_buf_id ind_buffer, col_buf_id col_buffer, Primitive type, bool anti_aliased)
-// {
-//     auto& buf = pos_buf[pos_buffer.pos_id];
-//     auto& ind = ind_buf[ind_buffer.ind_id];
-//     auto& col = col_buf[col_buffer.col_id];
 
-//     float f1 = (50 - 0.1) / 2.0;
-//     float f2 = (50 + 0.1) / 2.0;
+    fn rasterize_triangle(&mut self, triangle: &Triangle) {
+        let v = triangle.to_vector4();
 
-//     Eigen::Matrix4f mvp = projection * view * model;
-//     for (auto& i : ind)
-//     {
-//         Triangle t;
-//         Eigen::Vector4f v[] = {
-//                 mvp * to_vec4(buf[i[0]], 1.0f),
-//                 mvp * to_vec4(buf[i[1]], 1.0f),
-//                 mvp * to_vec4(buf[i[2]], 1.0f)
-//         };
-//         //Homogeneous division
-//         for (auto& vec : v) {
-//             vec /= vec.w();
-//         }
-//         //Viewport transformation
-//         for (auto & vert : v)
-//         {
-//             vert.x() = 0.5*width*(vert.x()+1.0);
-//             vert.y() = 0.5*height*(vert.y()+1.0);
-//             vert.z() = vert.z() * f1 + f2;
-//         }
+        let (mut bottom, mut top, mut left, mut right) = (f64::MAX, f64::MIN, f64::MAX, f64::MIN);
+        for vec in v.iter() {
+            bottom = bottom.min(vec.y);
+            top    = top.max(vec.y);
+            left   = left.min(vec.x);
+            right  = right.max(vec.x);
+        }
 
-//         for (int i = 0; i < 3; ++i)
-//         {
-//             t.setVertex(i, v[i].head<3>());
-//             t.setVertex(i, v[i].head<3>());
-//             t.setVertex(i, v[i].head<3>());
-//         }
-
-//         auto col_x = col[i[0]];
-//         auto col_y = col[i[1]];
-//         auto col_z = col[i[2]];
-
-//         t.setColor(0, col_x[0], col_x[1], col_x[2]);
-//         t.setColor(1, col_y[0], col_y[1], col_y[2]);
-//         t.setColor(2, col_z[0], col_z[1], col_z[2]);
-
-//         if (anti_aliased) {
-//             rasterize_triangle_anti_aliased(t);
-//         } else {
-//             rasterize_triangle(t);
-//         }
-//     }
-// }
+        let (i_bottom, i_top, i_left, i_right) =
+            (bottom.floor() as usize, top.floor() as usize, left.floor() as usize, right.floor() as usize);
+        for y in i_bottom..=i_top {
+            for x in i_left..=i_right {
+                if inside_triangle(x as f64, y as f64, triangle) {
+                    let (alpha, beta, gamma) = compute_barycentric_2D(x as f64, y as f64, &triangle.vertices);
+                    let w_reciproal = 1./(alpha / v[0].w + beta / v[1].w + gamma / v[2].w);
+                    let z_interpolated = (alpha * v[0].z / v[0].w + beta * v[1].z / v[1].w + gamma * v[2].z / v[2].w) * w_reciproal;
+                    let idx = get_index(x, y, self. width, self.height);
+                    if z_interpolated < self.depth_buf[idx] {
+                        self.depth_buf[idx] = z_interpolated;
+                        let point = Vector3::new(x as f64, y as f64, 0.);
+                        self.set_pixel(&point, &(triangle.colors[0] * 255.));
+                    }
+                }
+            }
+        }
+    }
 }

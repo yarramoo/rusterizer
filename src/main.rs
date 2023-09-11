@@ -4,8 +4,8 @@ mod rasterizer;
 use nalgebra::{Vector3, Matrix4, iter::MatrixIter};
 use rasterizer::*;
 
-const WIDTH: usize = 640;
-const HEIGHT: usize = 360;
+const WIDTH: usize = 700;
+const HEIGHT: usize = 700;
 
 fn get_view_matrix(eye_pos: &Vector3<f64>) -> Matrix4<f64> {
     let mut view: Matrix4<f64> = Matrix4::identity();
@@ -46,6 +46,7 @@ fn get_model_matrix(axis: &Vector3<f64>, angle: f64) -> Matrix4<f64> {
 
 fn get_projection_matrix(eye_fov: f64, aspect_ratio: f64, zNear: f64, zFar: f64) -> Matrix4<f64> {
     // Matrix for projecting 
+    let eye_fov = eye_fov.to_radians();
     let top = zNear * (eye_fov / 2.).tan();
     let bottom = -top;
     let right = top * aspect_ratio;
@@ -93,6 +94,28 @@ fn main() {
     rasterizer.clear_depth_buf();
     rasterizer.clear_frame_buf();
 
+    let angle = 0.;
+    let eye_pos = Vector3::new(0.,0.,5.);
+
+    rasterizer.set_model(get_model_matrix(&Vector3::new(0., 0., 1.), angle));
+    rasterizer.set_view(get_view_matrix(&eye_pos));
+    rasterizer.set_projection(get_projection_matrix(45., 1., 0.1, 50.));
+
+    rasterizer.draw(a_pos_ind, a_ind_id, a_col_id);
+
+    let mut buf = Vec::new();
+
+    for v in rasterizer.frame_buf().iter() {
+        buf.push(encode_col_u32(v));
+    }
+
+    while window.is_open() && !window.is_key_down(Key::Escape) {
+        window.update_with_buffer(&buf[..], WIDTH, HEIGHT).unwrap();
+    }
+}
+
+fn encode_col_u32(v: &Vector3<f64>) -> u32 {
+    v.z.round() as u32 | (v.y.round() as u32) << 8 | (v.x.round() as u32) << 16
 }
 
 fn fill_pattern(buffer: &mut [u32], width: usize, height: usize, gap: usize) {

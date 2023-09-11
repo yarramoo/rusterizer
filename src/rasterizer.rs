@@ -1,5 +1,5 @@
 use nalgebra::{self, Matrix4, Matrix3, Vector3, Vector4, Vector};
-use std::collections::HashMap;
+use std::{collections::HashMap, path::PrefixComponent};
 
 fn get_index(x: usize, y: usize, width: usize, height: usize) -> usize {
     (height-1-y)*width + x
@@ -75,8 +75,8 @@ pub struct Rasterizer {
 impl Rasterizer {
     pub fn new(width: usize, height: usize) -> Self {
         Rasterizer {
-            frame_buf: Vec::with_capacity(width * height),
-            depth_buf: Vec::with_capacity(width * height),
+            frame_buf: vec![Vector3::new(0., 0., 0.,); width * height],
+            depth_buf: vec![f64::MAX; width * height],
             width,
             height,
             next_id: 0,
@@ -88,22 +88,22 @@ impl Rasterizer {
         &self.frame_buf[..]
     }
 
-    pub fn load_positions(&mut self, positions: Vec<Vector3<f64>>) -> usize {
+    pub fn load_positions(&mut self, positions: Vec<Vector3<f64>>) -> PosBufID {
         let id = self.get_next_id();
         self.pos_buf.insert(id, positions);
-        id
+        PosBufID(id)
     }
 
-    pub fn load_indices(&mut self, indices: Vec<Vector3<usize>>)  -> usize {
+    pub fn load_indices(&mut self, indices: Vec<Vector3<usize>>)  -> IndBufID {
         let id = self.get_next_id();
         self.ind_buf.insert(id, indices);
-        id
+        IndBufID(id)
     }
 
-    pub fn load_colors(&mut self, colors: Vec<Vector3<f64>>) -> usize {
+    pub fn load_colors(&mut self, colors: Vec<Vector3<f64>>) -> ColBufID {
         let id = self.get_next_id();
         self.col_buf.insert(id, colors);
-        id
+        ColBufID(id)
     }
 
     fn get_next_id(&mut self) -> usize {
@@ -112,9 +112,15 @@ impl Rasterizer {
         id
     }
 
-    fn set_pixel(&mut self, point: &Vector3<f64>, color: &Vector3<f64>) {
-        let idx = get_index(point.x.round() as usize, point.y.round() as usize, self.width, self.height);
-        self.frame_buf[idx] = *color;
+    fn set_pixel(
+        frame_buf: &mut Vec<Vector3<f64>>, 
+        point: &Vector3<f64>, 
+        color: &Vector3<f64>,
+        width: usize,
+        height: usize,
+    ) {
+        let idx = get_index(point.x.round() as usize, point.y.round() as usize, width, height);
+        frame_buf[idx] = *color;
     }
 
     fn get_pixel(&self, point: &Vector3<f64>) -> &Vector3<f64> {
@@ -127,7 +133,19 @@ impl Rasterizer {
     }
 
     pub fn clear_depth_buf(&mut self) {
-        self.depth_buf.fill(0.);
+        self.depth_buf.fill(f64::MAX);
+    }
+
+    pub fn set_model(&mut self, model: Matrix4<f64>) {
+        self.model = model;
+    }
+
+    pub fn set_view(&mut self, view: Matrix4<f64>) {
+        self.view = view;
+    }
+
+    pub fn set_projection(&mut self, projection: Matrix4<f64>) {
+        self.projection = projection;
     }
 
     pub fn draw(&mut self, pos_id: PosBufID, ind_id: IndBufID, col_id: ColBufID) {
@@ -135,8 +153,8 @@ impl Rasterizer {
         let ind = self.ind_buf.get(&ind_id.0).unwrap();
         let col = self.col_buf.get(&col_id.0).unwrap();
 
-        let f1 = (50. - 0.1) / 2.;
-        let f2 = (50. + 0.1) / 2.;
+        let f1 = (100. - 0.1) / 2.;
+        let f2 = (100. + 0.1) / 2.;
 
         let mvp = self.projection * self.view * self.model;
         for i in ind.iter() {
@@ -153,16 +171,22 @@ impl Rasterizer {
             for vert in v.iter_mut() {
                 vert.x = 0.5 * self.width as f64 * (vert.x + 1.);
                 vert.y = 0.5 * self.height as f64 * (vert.y + 1.);
-                vert.z = vert.z * f1 * f2;
+                vert.z = vert.z * f1 + f2;
             }
             t.vertices.copy_from_slice(&v.map(|vert| to_vec3(&vert)));
             t.colors.copy_from_slice(&[col[i.x], col[i.y], col[i.z]]);
             // Rasterize 
-            // rasterize_triangle(&t);
+            Rasterizer::rasterize_triangle(&mut self.frame_buf, &mut self.depth_buf, self.width, self.height, &t);
         }
     }
 
-    fn rasterize_triangle(&mut self, triangle: &Triangle) {
+    fn rasterize_triangle(
+        frame_buf: &mut Vec<Vector3<f64>>, 
+        depth_buf: &mut Vec<f64>,
+        width: usize,
+        height: usize,
+        triangle: &Triangle
+    ) {
         let v = triangle.to_vector4();
 
         let (mut bottom, mut top, mut left, mut right) = (f64::MAX, f64::MIN, f64::MAX, f64::MIN);
@@ -181,11 +205,11 @@ impl Rasterizer {
                     let (alpha, beta, gamma) = compute_barycentric_2D(x as f64, y as f64, &triangle.vertices);
                     let w_reciproal = 1./(alpha / v[0].w + beta / v[1].w + gamma / v[2].w);
                     let z_interpolated = (alpha * v[0].z / v[0].w + beta * v[1].z / v[1].w + gamma * v[2].z / v[2].w) * w_reciproal;
-                    let idx = get_index(x, y, self. width, self.height);
-                    if z_interpolated < self.depth_buf[idx] {
-                        self.depth_buf[idx] = z_interpolated;
+                    let idx = get_index(x, y, width, height);
+                    if z_interpolated < depth_buf[idx] {
+                        depth_buf[idx] = z_interpolated;
                         let point = Vector3::new(x as f64, y as f64, 0.);
-                        self.set_pixel(&point, &(triangle.colors[0] * 255.));
+                        Rasterizer::set_pixel(frame_buf, &point, &(triangle.colors[0] * 255.), width, height);
                     }
                 }
             }

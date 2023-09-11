@@ -1,5 +1,5 @@
-use nalgebra::{self, Matrix4, Matrix3, Vector3, Vector4, Vector};
-use std::{collections::HashMap, path::PrefixComponent};
+use nalgebra::{self, Matrix4, Matrix3, Vector3, Vector4, Vector, Dynamic, U1, VectorSliceMut};
+use std::{collections::HashMap, path::PrefixComponent, default};
 
 fn get_index(x: usize, y: usize, width: usize, height: usize) -> usize {
     (height-1-y)*width + x
@@ -38,6 +38,44 @@ impl Triangle {
             out[i] = Vector4::new(v.x, v.y, v.z, 1.);
         }
         out
+    }
+}
+
+struct TriangleBuilder {
+    vertices: Option<[Vector3<f64>; 3]>,
+    colors:   Option<[Vector3<f64>; 3]>,
+    tex_coords: Option<[Vector3<f64>; 3]>,
+    normals:  Option<[Vector3<f64>; 3]>, 
+}
+
+impl TriangleBuilder {
+    fn new() -> Self {
+        TriangleBuilder { vertices: None, colors: None, tex_coords: None, normals: None }
+    }
+    fn with_vertices(mut self, vertices: &[Vector3<f64>; 3]) -> Self 
+    {
+        self.vertices = Some(vertices.clone());
+        self
+    }
+    fn with_colors(mut self, colors: &[Vector3<f64>; 3]) -> Self {
+        self.colors = Some(colors.clone());
+        self
+    }
+    fn with_tex_coords(mut self, tex_coords: &[Vector3<f64>; 3]) -> Self {
+        self.tex_coords = Some(tex_coords.clone());
+        self
+    }
+    fn with_normals(mut self, normals: &[Vector3<f64>; 3]) -> Self {
+        self.normals = Some(normals.clone());
+        self
+    }
+    fn build(self) -> Triangle {
+        Triangle { 
+            vertices:   self.vertices.unwrap_or_default(), 
+            colors:     self.colors.unwrap_or_default(), 
+            tex_coords: self.tex_coords.unwrap_or_default(), 
+            normals:    self.normals.unwrap_or_default() 
+        }
     }
 }
 
@@ -158,23 +196,29 @@ impl Rasterizer {
 
         let mvp = self.projection * self.view * self.model;
         for i in ind.iter() {
-            let mut t = Triangle::default();
             // Vertices
-            let mut v = [
+            let mut vertices = [
                 mvp * to_vec4(&buf[i.x], 1.),
                 mvp * to_vec4(&buf[i.y], 1.),
                 mvp * to_vec4(&buf[i.z], 1.),
             ];
-            for vec in v.iter_mut() {
+            for vec in vertices.iter_mut() {
                 *vec /= vec.w;
             }
-            for vert in v.iter_mut() {
+            for vert in vertices.iter_mut() {
                 vert.x = 0.5 * self.width as f64 * (vert.x + 1.);
                 vert.y = 0.5 * self.height as f64 * (vert.y + 1.);
                 vert.z = vert.z * f1 + f2;
             }
-            t.vertices.copy_from_slice(&v.map(|vert| to_vec3(&vert)));
-            t.colors.copy_from_slice(&[col[i.x], col[i.y], col[i.z]]);
+
+            let t = TriangleBuilder::new()
+                .with_vertices(&[
+                    Vector3::new(vertices[0].x, vertices[0].y, vertices[0].z),
+                    Vector3::new(vertices[1].x, vertices[1].y, vertices[1].z),
+                    Vector3::new(vertices[2].x, vertices[2].y, vertices[2].z),
+                ])
+                .with_colors(&[col[i.x], col[i.y], col[i.z]])
+                .build();
             // Rasterize 
             Rasterizer::rasterize_triangle(&mut self.frame_buf, &mut self.depth_buf, self.width, self.height, &t);
         }
@@ -209,7 +253,8 @@ impl Rasterizer {
                     if z_interpolated < depth_buf[idx] {
                         depth_buf[idx] = z_interpolated;
                         let point = Vector3::new(x as f64, y as f64, 0.);
-                        Rasterizer::set_pixel(frame_buf, &point, &(triangle.colors[0] * 255.), width, height);
+                        // No color interpolation. TODO
+                        Rasterizer::set_pixel(frame_buf, &point, &(triangle.colors[0]), width, height);
                     }
                 }
             }

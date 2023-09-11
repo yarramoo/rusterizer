@@ -115,20 +115,5 @@ fn main() {
 }
 
 fn encode_col_u32(v: &Vector3<f64>) -> u32 {
-    v.z.round() as u32 | (v.y.round() as u32) << 8 | (v.x.round() as u32) << 16
-}
-
-fn fill_pattern(buffer: &mut [u32], width: usize, height: usize, gap: usize) {
-    assert_eq!(buffer.len(), width * height);
-
-    buffer
-        .iter_mut()
-        .enumerate()
-        .for_each(|(i, p)| {
-            if i % gap == 0 {
-                *p = 0xffffffff;
-            } else {
-                *p = 0x0;
-            }
-        });
+    (v.x.round() as u32) << 16 | (v.y.round() as u32) << 8 | v.z.round() as u32
 }

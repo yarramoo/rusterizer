@@ -55,11 +55,12 @@ impl<'a> TriangleBuilder<'a> {
         if self.colors.is_none() && self.tex_coords.is_none() {
             panic!("Trying to build a triangle without color or texture");
         }
+        let create_default_vectors = || { [Vector3::default(); 3] };
         Triangle { 
             vertices:   self.vertices  .copied().expect("Trying to build a Triangle without any vertices!"),
-            colors:     self.colors    .copied().unwrap_or_else(|| [Vector3::default(); 3]),
-            tex_coords: self.tex_coords.copied().unwrap_or_else(|| [Vector3::default(); 3]),
-            normals:    self.normals   .copied().unwrap_or_else(|| [Vector3::default(); 3]),
+            colors:     self.colors    .copied().unwrap_or_else(create_default_vectors),
+            tex_coords: self.tex_coords.copied().unwrap_or_else(create_default_vectors),
+            normals:    self.normals   .copied().unwrap_or_else(create_default_vectors),
         }
     }
 }

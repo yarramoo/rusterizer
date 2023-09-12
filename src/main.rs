@@ -62,7 +62,7 @@ fn get_projection_matrix(eye_fov: f64, aspect_ratio: f64, zNear: f64, zFar: f64)
 
 fn main() {
     let mut window = Window::new(
-        "Line drawing test",
+        "Rusterizer",
         WIDTH,
         HEIGHT,
         WindowOptions { title: true, resize: true, ..Default::default() }

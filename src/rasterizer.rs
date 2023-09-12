@@ -1,5 +1,9 @@
-use nalgebra::{self, Matrix4, Matrix3, Vector3, Vector4, Vector, Dynamic, U1, VectorSliceMut};
-use std::{collections::HashMap, path::PrefixComponent, default};
+use nalgebra::{self, Matrix4, Matrix3, Vector3, Vector4};
+use std::{collections::HashMap, default, ops::Deref};
+
+mod triangle;
+use triangle::{Triangle, TriangleBuilder};
+
 
 fn get_index(x: usize, y: usize, width: usize, height: usize) -> usize {
     (height-1-y)*width + x
@@ -23,69 +27,24 @@ fn compute_barycentric_2D(x: f64, y: f64, v: &[Vector3<f64>; 3]) -> (f64, f64, f
     (c1,c2,c3)
 }
 
-#[derive(Default)]
-struct Triangle {
-    vertices: [Vector3<f64>; 3],
-    colors:   [Vector3<f64>; 3],
-    tex_coords: [Vector3<f64>; 3],
-    normals:  [Vector3<f64>; 3], 
-}
 
-impl Triangle {
-    fn to_vector4(&self) -> [Vector4<f64>; 3] {
-        let mut out = [Vector4::default(); 3];
-        for (i, v) in self.vertices.iter().enumerate() {
-            out[i] = Vector4::new(v.x, v.y, v.z, 1.);
-        }
-        out
-    }
-}
+// #[proc_macro_derive(TlbormDerive)]
+// pub fn tlborm_derive(item: TokenStream) -> TokenStream {
+//     TokenStream::new()
+// }
 
-struct TriangleBuilder {
-    vertices: Option<[Vector3<f64>; 3]>,
-    colors:   Option<[Vector3<f64>; 3]>,
-    tex_coords: Option<[Vector3<f64>; 3]>,
-    normals:  Option<[Vector3<f64>; 3]>, 
-}
-
-impl TriangleBuilder {
-    fn new() -> Self {
-        TriangleBuilder { vertices: None, colors: None, tex_coords: None, normals: None }
-    }
-    fn with_vertices(mut self, vertices: &[Vector3<f64>; 3]) -> Self 
-    {
-        self.vertices = Some(vertices.clone());
-        self
-    }
-    fn with_colors(mut self, colors: &[Vector3<f64>; 3]) -> Self {
-        self.colors = Some(colors.clone());
-        self
-    }
-    fn with_tex_coords(mut self, tex_coords: &[Vector3<f64>; 3]) -> Self {
-        self.tex_coords = Some(tex_coords.clone());
-        self
-    }
-    fn with_normals(mut self, normals: &[Vector3<f64>; 3]) -> Self {
-        self.normals = Some(normals.clone());
-        self
-    }
-    fn build(self) -> Triangle {
-        Triangle { 
-            vertices:   self.vertices.unwrap_or_default(), 
-            colors:     self.colors.unwrap_or_default(), 
-            tex_coords: self.tex_coords.unwrap_or_default(), 
-            normals:    self.normals.unwrap_or_default() 
-        }
-    }
-}
-
-
-fn inside_triangle(x: f64, y: f64, triangle: &Triangle) -> bool {
-    let (c1, c2, c3) = compute_barycentric_2D(x, y, &triangle.vertices);
-    c1 >= 0. && c2 >= 0. && c3 >= 0.
-}
+// #[proc_macro_derive(NewTypeDeref)]
+// fn newtype_deref_derive(item: TokenStream) -> TokenStream {
+    
+// }
 
 pub struct PosBufID(usize);
+impl Deref for PosBufID {
+    type Target = usize;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 pub struct IndBufID(usize);
 pub struct ColBufID(usize);
 
@@ -187,7 +146,7 @@ impl Rasterizer {
     }
 
     pub fn draw(&mut self, pos_id: PosBufID, ind_id: IndBufID, col_id: ColBufID) {
-        let buf = self.pos_buf.get(&pos_id.0).unwrap();
+        let buf = self.pos_buf.get(&*pos_id).unwrap();
         let ind = self.ind_buf.get(&ind_id.0).unwrap();
         let col = self.col_buf.get(&col_id.0).unwrap();
 
@@ -245,7 +204,7 @@ impl Rasterizer {
             (bottom.floor() as usize, top.floor() as usize, left.floor() as usize, right.floor() as usize);
         for y in i_bottom..=i_top {
             for x in i_left..=i_right {
-                if inside_triangle(x as f64, y as f64, triangle) {
+                if triangle.inside_triangle(x as f64, y as f64) {
                     let (alpha, beta, gamma) = compute_barycentric_2D(x as f64, y as f64, &triangle.vertices);
                     let w_reciproal = 1./(alpha / v[0].w + beta / v[1].w + gamma / v[2].w);
                     let z_interpolated = (alpha * v[0].z / v[0].w + beta * v[1].z / v[1].w + gamma * v[2].z / v[2].w) * w_reciproal;

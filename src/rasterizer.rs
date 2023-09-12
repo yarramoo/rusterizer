@@ -1,8 +1,7 @@
 use nalgebra::{self, Matrix4, Vector3, Vector4};
 use std::{collections::HashMap, ops::Deref};
 
-mod triangle;
-use triangle::{Triangle, TriangleBuilder};
+use super::triangle::{Triangle, TriangleBuilder};
 
 
 fn get_index(x: usize, y: usize, width: usize, height: usize) -> usize {
@@ -17,7 +16,7 @@ fn to_vec3(vec4: &Vector4<f64>) -> Vector3<f64> {
     Vector3::new(vec4.x, vec4.y, vec4.z)
 }
 
-fn compute_barycentric_2D(x: f64, y: f64, v: &[Vector3<f64>; 3]) -> (f64, f64, f64) {
+pub fn compute_barycentric_2_d(x: f64, y: f64, v: &[Vector3<f64>; 3]) -> (f64, f64, f64) {
     let p = Vector3::new(x, y, 0.);
     let v0 = v[1] - v[0]; let v1 = v[2] - v[0]; let v2 = p - v[0];
     let den = v0.x * v1.y - v1.x * v0.y;
@@ -179,7 +178,13 @@ impl Rasterizer {
                 .with_colors(&[col[i.x], col[i.y], col[i.z]])
                 .build();
             // Rasterize 
-            Rasterizer::rasterize_triangle(&mut self.frame_buf[..], &mut self.depth_buf[..], self.width, self.height, &t);
+            Rasterizer::rasterize_triangle(
+                &mut self.frame_buf[..], 
+                &mut self.depth_buf[..], 
+                self.width, 
+                self.height, 
+                &t
+            );
         }
     }
 
@@ -205,7 +210,7 @@ impl Rasterizer {
         for y in i_bottom..=i_top {
             for x in i_left..=i_right {
                 if triangle.inside_triangle(x as f64, y as f64) {
-                    let (alpha, beta, gamma) = compute_barycentric_2D(x as f64, y as f64, &triangle.vertices);
+                    let (alpha, beta, gamma) = compute_barycentric_2_d(x as f64, y as f64, &triangle.vertices);
                     let w_reciproal = 1./(alpha / v[0].w + beta / v[1].w + gamma / v[2].w);
                     let z_interpolated = (alpha * v[0].z / v[0].w + beta * v[1].z / v[1].w + gamma * v[2].z / v[2].w) * w_reciproal;
                     let idx = get_index(x, y, width, height);

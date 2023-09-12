@@ -17,8 +17,8 @@ impl Triangle {
         out
     }
     pub fn inside_triangle(&self, x: f64, y: f64) -> bool {
-        use crate::rasterizer::compute_barycentric_2D;
-        let (c1, c2, c3) = compute_barycentric_2D(x, y, &self.vertices);
+        use crate::rasterizer::compute_barycentric_2_d;
+        let (c1, c2, c3) = compute_barycentric_2_d(x, y, &self.vertices);
         c1 >= 0. && c2 >= 0. && c3 >= 0.
     }
 }
@@ -65,3 +65,8 @@ impl<'a> TriangleBuilder<'a> {
     }
 }
 
+impl<'a> Default for TriangleBuilder<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
+}

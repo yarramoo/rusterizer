@@ -23,40 +23,43 @@ impl Triangle {
     }
 }
 
-pub struct TriangleBuilder {
-    vertices: Option<[Vector3<f64>; 3]>,
-    colors:   Option<[Vector3<f64>; 3]>,
-    tex_coords: Option<[Vector3<f64>; 3]>,
-    normals:  Option<[Vector3<f64>; 3]>, 
+pub struct TriangleBuilder<'a> {
+    vertices:   Option<&'a [Vector3<f64>; 3]>,
+    colors:     Option<&'a [Vector3<f64>; 3]>,
+    tex_coords: Option<&'a [Vector3<f64>; 3]>,
+    normals:    Option<&'a [Vector3<f64>; 3]>, 
 }
 
-impl TriangleBuilder {
+impl<'a> TriangleBuilder<'a> {
     pub fn new() -> Self {
         TriangleBuilder { vertices: None, colors: None, tex_coords: None, normals: None }
     }
-    pub fn with_vertices(mut self, vertices: &[Vector3<f64>; 3]) -> Self 
+    pub fn with_vertices(mut self, vertices: &'a [Vector3<f64>; 3]) -> Self 
     {
-        self.vertices = Some(vertices.clone());
+        self.vertices = Some(vertices);
         self
     }
-    pub fn with_colors(mut self, colors: &[Vector3<f64>; 3]) -> Self {
-        self.colors = Some(colors.clone());
+    pub fn with_colors(mut self, colors: &'a [Vector3<f64>; 3]) -> Self {
+        self.colors = Some(colors);
         self
     }
-    pub fn with_tex_coords(mut self, tex_coords: &[Vector3<f64>; 3]) -> Self {
-        self.tex_coords = Some(tex_coords.clone());
+    pub fn with_tex_coords(mut self, tex_coords: &'a [Vector3<f64>; 3]) -> Self {
+        self.tex_coords = Some(tex_coords);
         self
     }
-    pub fn with_normals(mut self, normals: &[Vector3<f64>; 3]) -> Self {
-        self.normals = Some(normals.clone());
+    pub fn with_normals(mut self, normals: &'a [Vector3<f64>; 3]) -> Self {
+        self.normals = Some(normals);
         self
     }
     pub fn build(self) -> Triangle {
+        if self.colors.is_none() && self.tex_coords.is_none() {
+            panic!("Trying to build a triangle without color or texture");
+        }
         Triangle { 
-            vertices:   self.vertices.unwrap_or_default(), 
-            colors:     self.colors.unwrap_or_default(), 
-            tex_coords: self.tex_coords.unwrap_or_default(), 
-            normals:    self.normals.unwrap_or_default() 
+            vertices:   self.vertices  .map(|v| *v).expect("Trying to build a triangle with no vertices!"),
+            colors:     self.colors    .map_or([Vector3::default(); 3], |c| *c),
+            tex_coords: self.tex_coords.map_or([Vector3::default(); 3], |t| *t),
+            normals:    self.normals   .map_or([Vector3::default(); 3], |n| *n),
         }
     }
 }

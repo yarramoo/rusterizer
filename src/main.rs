@@ -1,14 +1,14 @@
 use minifb::{Key, Window, WindowOptions};
 
 mod rasterizer;
-use nalgebra::{Vector3, Matrix4, iter::MatrixIter};
+use nalgebra::{Vector3, Matrix4};
 use rasterizer::*;
 
 const WIDTH: usize = 700;
 const HEIGHT: usize = 700;
 
 fn get_view_matrix(eye_pos: &Vector3<f64>) -> Matrix4<f64> {
-    let mut view: Matrix4<f64> = Matrix4::identity();
+    let view: Matrix4<f64> = Matrix4::identity();
     let translate = Matrix4::new(
         1., 0., 0., -eye_pos.x,
         0., 1., 0., -eye_pos.y,
@@ -44,20 +44,19 @@ fn get_model_matrix(axis: &Vector3<f64>, angle: f64) -> Matrix4<f64> {
     )
 }
 
-fn get_projection_matrix(eye_fov: f64, aspect_ratio: f64, zNear: f64, zFar: f64) -> Matrix4<f64> {
+fn get_projection_matrix(eye_fov: f64, aspect_ratio: f64, z_near: f64, z_far: f64) -> Matrix4<f64> {
     // Matrix for projecting 
     let eye_fov = eye_fov.to_radians();
-    let top = zNear * (eye_fov / 2.).tan();
-    let bottom = -top;
+    let top = z_near * (eye_fov / 2.).tan();
+    let _bottom = -top;
     let right = top * aspect_ratio;
-    let left = -right;
-    let projection = Matrix4::new(
-        zNear/right, 0., 0., 0.,
-        0., zNear/top, 0., 0.,
-        0., 0., -((zFar+zNear)/(zFar-zNear)), -2.*zFar*zNear,
+    let _left = -right;
+    Matrix4::new(
+        z_near/right, 0., 0., 0.,
+        0., z_near/top, 0., 0.,
+        0., 0., -((z_far+z_near)/(z_far-z_near)), -2.*z_far*z_near,
         0., 0., -1., 0.
-    );
-    projection
+    )
 }
 
 fn main() {
@@ -70,8 +69,6 @@ fn main() {
     .expect("Unable to create window");
 
     let mut rasterizer = Rasterizer::new(WIDTH, HEIGHT);
-
-    let eye_pos: Vector3<f64> = Vector3::new(0., 0., 5.);
 
     let triangle_a: Vec<Vector3<f64>> = vec![
         Vector3::new(2., 0., -2.),

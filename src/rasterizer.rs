@@ -1,5 +1,5 @@
-use nalgebra::{self, Matrix4, Matrix3, Vector3, Vector4};
-use std::{collections::HashMap, default, ops::Deref};
+use nalgebra::{self, Matrix4, Vector3, Vector4};
+use std::{collections::HashMap, ops::Deref};
 
 mod triangle;
 use triangle::{Triangle, TriangleBuilder};
@@ -110,7 +110,7 @@ impl Rasterizer {
     }
 
     fn set_pixel(
-        frame_buf: &mut Vec<Vector3<f64>>, 
+        frame_buf: &mut [Vector3<f64>], 
         point: &Vector3<f64>, 
         color: &Vector3<f64>,
         width: usize,
@@ -179,13 +179,13 @@ impl Rasterizer {
                 .with_colors(&[col[i.x], col[i.y], col[i.z]])
                 .build();
             // Rasterize 
-            Rasterizer::rasterize_triangle(&mut self.frame_buf, &mut self.depth_buf, self.width, self.height, &t);
+            Rasterizer::rasterize_triangle(&mut self.frame_buf[..], &mut self.depth_buf[..], self.width, self.height, &t);
         }
     }
 
     fn rasterize_triangle(
-        frame_buf: &mut Vec<Vector3<f64>>, 
-        depth_buf: &mut Vec<f64>,
+        frame_buf: &mut [Vector3<f64>], 
+        depth_buf: &mut [f64],
         width: usize,
         height: usize,
         triangle: &Triangle

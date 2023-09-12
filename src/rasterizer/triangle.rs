@@ -56,10 +56,10 @@ impl<'a> TriangleBuilder<'a> {
             panic!("Trying to build a triangle without color or texture");
         }
         Triangle { 
-            vertices:   self.vertices  .map(|v| *v).expect("Trying to build a triangle with no vertices!"),
-            colors:     self.colors    .map_or([Vector3::default(); 3], |c| *c),
-            tex_coords: self.tex_coords.map_or([Vector3::default(); 3], |t| *t),
-            normals:    self.normals   .map_or([Vector3::default(); 3], |n| *n),
+            vertices:   self.vertices  .copied().expect("Trying to build a Triangle without and vertices!"),
+            colors:     self.colors    .copied().unwrap_or_else(|| [Vector3::default(); 3]),
+            tex_coords: self.tex_coords.copied().unwrap_or_else(|| [Vector3::default(); 3]),
+            normals:    self.normals   .copied().unwrap_or_else(|| [Vector3::default(); 3]),
         }
     }
 }

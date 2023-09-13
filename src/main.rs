@@ -1,7 +1,7 @@
 use minifb::{Key, Window, WindowOptions};
 use nalgebra::Vector3;
 
-use rusterizer::{utils::*, rasterizer::*};
+use rusterizer::{utils::*, rasterizer::*, triangle::{TriangleBuilder, Triangle}, color::Color};
 
 const WIDTH: usize = 700;
 const HEIGHT: usize = 700;
@@ -17,23 +17,26 @@ fn main() {
 
     let mut rasterizer = Rasterizer::new(WIDTH, HEIGHT);
 
-    let triangle_a: Vec<Vector3<f64>> = vec![
-        Vector3::new(2., 0., -2.),
-        Vector3::new(0., 2., -2.),
-        Vector3::new(-2., 0., -2.)
-    ];
-    let triangle_a_ind: Vec<Vector3<usize>> = vec![
-        Vector3::new(0, 1, 2)
-    ];
-    let triangle_a_col: Vec<Vector3<f64>> = vec![
-        Vector3::new(217.0, 238.0, 185.0),
-        Vector3::new(217.0, 238.0, 185.0),
-        Vector3::new(217.0, 238.0, 185.0),
-    ];
+    // let triangle_a: Vec<Vector3<f64>> = vec![
+    //     Vector3::new(2., 0., -2.),
+    //     Vector3::new(0., 2., -2.),
+    //     Vector3::new(-2., 0., -2.)
+    // ];
+    // let triangle_a_ind: Vec<Vector3<usize>> = vec![
+    //     Vector3::new(0, 1, 2)
+    // ];
+    // let triangle_a_col: Vec<Vector3<f64>> = vec![
+    //     Vector3::new(217.0, 238.0, 185.0),
+    //     Vector3::new(217.0, 238.0, 185.0),
+    //     Vector3::new(217.0, 238.0, 185.0),
+    // ];
 
-    let a_pos_ind = rasterizer.load_positions(triangle_a);
-    let a_ind_id = rasterizer.load_indices(triangle_a_ind);
-    let a_col_id = rasterizer.load_colors(triangle_a_col);
+    let t = Triangle::new_matte((2.,0.,-2.), (0.,2.,-2.), (-2.,0.,-2.), Color::Red);
+    let (a_pos_ind, a_ind_id, a_col_id) = rasterizer.load_triangle(&t);
+
+    // let a_pos_ind = rasterizer.load_positions(triangle_a);
+    // let a_ind_id = rasterizer.load_indices(triangle_a_ind);
+    // let a_col_id = rasterizer.load_colors(triangle_a_col);
 
     rasterizer.clear_depth_buf();
     rasterizer.clear_frame_buf();

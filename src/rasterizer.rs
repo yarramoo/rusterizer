@@ -1,5 +1,5 @@
 use nalgebra::{self, Matrix4, Vector3, Vector4};
-use std::{collections::HashMap, ops::Deref};
+use std::{collections::HashMap, ops::{Deref, Range}};
 
 use super::triangle::{Triangle, TriangleBuilder};
 
@@ -84,22 +84,39 @@ impl Rasterizer {
         &self.frame_buf[..]
     }
 
-    pub fn load_positions(&mut self, positions: Vec<Vector3<f64>>) -> PosBufID {
+    pub fn load_positions(&mut self, positions: &[Vector3<f64>]) -> PosBufID {
         let id = self.get_next_id();
-        self.pos_buf.insert(id, positions);
+        self.pos_buf.insert(id, positions.to_vec());
         PosBufID(id)
     }
 
-    pub fn load_indices(&mut self, indices: Vec<Vector3<usize>>)  -> IndBufID {
+    pub fn load_indices(&mut self, indices: &[Vector3<usize>])  -> IndBufID {
         let id = self.get_next_id();
+        self.ind_buf.insert(id, indices.to_vec());
+        IndBufID(id)
+    }
+
+    pub fn load_indices_from_range(&mut self, index_range: Range<usize>) -> IndBufID {
+        let id = self.get_next_id();
+        let mut indices = Vec::with_capacity((index_range.end - index_range.start) / 3);
+        for i in index_range.step_by(3) {
+            indices.push(Vector3::new(i, i+1, i+2));
+        }
         self.ind_buf.insert(id, indices);
         IndBufID(id)
     }
 
-    pub fn load_colors(&mut self, colors: Vec<Vector3<f64>>) -> ColBufID {
+    pub fn load_colors(&mut self, colors: &[Vector3<f64>]) -> ColBufID {
         let id = self.get_next_id();
-        self.col_buf.insert(id, colors);
+        self.col_buf.insert(id, colors.to_vec());
         ColBufID(id)
+    }
+
+    pub fn load_triangle(&mut self, triangle: &Triangle) -> (PosBufID, IndBufID, ColBufID) {
+        let pos_buf_id = self.load_positions(&triangle.vertices);
+        let ind_buf_id = self.load_indices_from_range(0..triangle.vertices.len());
+        let col_buf_id = self.load_colors(&triangle.colors);
+        (pos_buf_id, ind_buf_id, col_buf_id)
     }
 
     fn get_next_id(&mut self) -> usize {

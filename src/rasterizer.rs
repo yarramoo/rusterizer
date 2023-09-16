@@ -222,8 +222,10 @@ impl Rasterizer {
             right  = right.max(vec.x);
         }
 
-        let (i_bottom, i_top, i_left, i_right) =
-            (bottom.floor() as usize, top.floor() as usize, left.floor() as usize, right.floor() as usize);
+        let (i_bottom, i_top, i_left, i_right) =(
+            (bottom.floor() as usize).max(0), (top.floor() as usize).min(height-1), 
+            (left.floor() as usize).max(0), (right.floor() as usize).min(width)
+        );
         for y in i_bottom..=i_top {
             for x in i_left..=i_right {
                 if triangle.inside_triangle(x as f64, y as f64) {

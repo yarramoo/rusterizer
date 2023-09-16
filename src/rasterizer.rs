@@ -214,17 +214,17 @@ impl Rasterizer {
     ) {
         let v = triangle.to_vector4();
 
-        let (mut bottom, mut top, mut left, mut right) = (f64::MAX, f64::MIN, f64::MAX, f64::MIN);
+        let (mut bottom, mut top, mut left, mut right) = ((height-1) as f64, 0.0f64, width as f64, 0.0f64);
         for vec in v.iter() {
-            bottom = bottom.min(vec.y);
-            top    = top.max(vec.y);
-            left   = left.min(vec.x);
-            right  = right.max(vec.x);
+            bottom = bottom.min(vec.y).max(0.);
+            top    = top.max(vec.y).min((height-1) as f64);
+            left   = left.min(vec.x).max(0.);
+            right  = right.max(vec.x).min(width as f64);
         }
 
         let (i_bottom, i_top, i_left, i_right) =(
-            (bottom.floor() as usize).max(0), (top.floor() as usize).min(height-1), 
-            (left.floor() as usize).max(0), (right.floor() as usize).min(width)
+            bottom.floor() as usize, top.floor() as usize, 
+            left.floor() as usize, right.floor() as usize
         );
         for y in i_bottom..=i_top {
             for x in i_left..=i_right {
